@@ -1,76 +1,95 @@
-import json
-import structlog
-from typing import Dict, List
-from app.models.schemas import Architecture, FailureMode
-from app.engines.llm_client import call_llm
+import logging
+from typing import List, Dict, Any, Literal
+from app.models.architecture import Architecture, Service, FailureMode
 
-logger = structlog.get_logger("architect_agent.failure_mode_mapper")
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
-SYSTEM_PROMPT = """
-You are a Site Reliability Engineer. Identify top 3 failure modes for the given service.
-Return output in strictly valid JSON:
-{
-  "failure_modes": [
-    {
-      "mode": "...",
-      "probability": "high|medium|low",
-      "impact": "...",
-      "detection_strategy": "...",
-      "mitigation_strategy": "...",
-      "fallback_strategy": "...",
-      "owner": "...",
-      "severity": "critical|high|medium|low"
-    }
-  ]
-}
-"""
+class FailureModeMapper:
+    """
+    Identifies common and specific failure modes for each service in the architecture.
+    """
 
-async def map_failure_modes(architecture: Architecture) -> Dict[str, List[FailureMode]]:
-    logger.info("mapping_failure_modes_start", services=len(architecture.services))
-    
-    modes_by_service: Dict[str, List[FailureMode]] = {}
-    
-    for service in architecture.services:
-        prompt = f"""
-        Service ID: {service.id}
-        Service Name: {service.name}
-        Description: {service.description}
-        Dependencies: {service.dependencies}
-        Tech Stack: {json.dumps(architecture.tech_stack)}
-        Domain: {architecture.domain}
+    def map_failures(self, arch: Architecture) -> List[FailureMode]:
         """
-        
-        try:
-            raw_res = await call_llm(
-                system_prompt=SYSTEM_PROMPT,
-                user_prompt=prompt,
-                response_format={"type": "json_object"}
-            )
-            data = json.loads(raw_res)
-            
-            fm_list = []
-            for fm_data in data.get("failure_modes", []):
-                # Ensure literal types are valid
-                prob = fm_data.get("probability", "medium").lower()
-                sev = fm_data.get("severity", "medium").lower()
-                if prob not in ["high", "medium", "low"]: prob = "medium"
-                if sev not in ["critical", "high", "medium", "low"]: sev = "medium"
-                
-                fm_data["probability"] = prob
-                fm_data["severity"] = sev
-                
-                try:
-                    fm = FailureMode(**fm_data)
-                    fm_list.append(fm)
-                except Exception as ex:
-                    logger.warning("invalid_failure_mode_dropped", error=str(ex), data=fm_data)
-                    
-            modes_by_service[service.id] = fm_list
-            logger.debug("failure_modes_mapped_for_service", service=service.id, count=len(fm_list))
-            
-        except Exception as e:
-            logger.error("failure_mode_mapping_failed", error=str(e), service=service.id)
-            modes_by_service[service.id] = []
-            
-    logger.info("mapping_failure_modes_complete")
-    return modes_by_service
+        Produce a list of FailureMode objects for all services.
+        """
+        all_failures = []
+        for service in arch.services:
+            failures = self._get_failures_for_service(service, arch.domain)
+            all_failures.extend(failures)
+        return all_failures
+
+    def _get_failures_for_service(self, service: Service, domain: str) -> List[FailureMode]:
+        """
+        Identify top 3 failure modes based on service type and domain.
+        """
+        failures = []
+
+        # 1. Generic availability failure (common to almost all)
+        failures.append(FailureMode(
+            service_id=service.id,
+            mode="Service Availability Loss",
+            probability="low",
+            impact="Critical - Service unresponsive",
+            detection="Heartbeat/Health check timeout (>5s)",
+            mitigation="Auto-restart via orchestrator (K8s), multi-zone replicas"
+        ))
+
+        # 2. Domain-specific failures
+        if domain == "microservices":
+            failures.append(FailureMode(
+                service_id=service.id,
+                mode="Database Connection Timeout",
+                probability="medium",
+                impact="High - Data operations fail",
+                detection="Exception: Connection pool exhausted",
+                mitigation="Connection pooling, query timeout, read-replicas"
+            ))
+            failures.append(FailureMode(
+                service_id=service.id,
+                mode="API Latency Spike",
+                probability="medium",
+                impact="Medium - Degraded user experience",
+                detection="P99 Latency > 2s",
+                mitigation="Caching, circuit breakers, autoscaling"
+            ))
+
+        elif domain == "ai_native":
+            failures.append(FailureMode(
+                service_id=service.id,
+                mode="Model Hallucination",
+                probability="medium",
+                impact="High - Incorrect/Unsafe response",
+                detection="Confidence score < 0.7 or validation check failed",
+                mitigation="RAG consistency check, human-in-the-loop, retry with temp=0"
+            ))
+            failures.append(FailureMode(
+                service_id=service.id,
+                mode="Vector DB Search Failure",
+                probability="low",
+                impact="High - Context loss for agents",
+                detection="Query returns zero results or connection error",
+                mitigation="Fallback to generic prompt, vector index redundancy"
+            ))
+
+        elif domain == "data_pipeline":
+            failures.append(FailureMode(
+                service_id=service.id,
+                mode="Data Schema Mismatch",
+                probability="medium",
+                impact="High - Pipeline halts or corrupts data",
+                detection="Schema validation error at ingestion",
+                mitigation="DLQ (Dead Letter Queue), schema evolution enforcement"
+            ))
+            failures.append(FailureMode(
+                service_id=service.id,
+                mode="Storage Quota Exceeded",
+                probability="low",
+                impact="Critical - Data loss",
+                detection="Write error: Insufficient space",
+                mitigation="Old data archival to S3, proactive alerting at 80% usage"
+            ))
+
+        return failures[:3] # Ensure exactly top 3

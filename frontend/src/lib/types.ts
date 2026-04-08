@@ -15,11 +15,26 @@ export interface TokenUsage {
   timestamp: string
 }
 
+export interface InteractionOption {
+  id: string
+  label: string
+  recommended: boolean
+}
+
+export interface PendingInteraction {
+  field: string
+  question: string
+  options: InteractionOption[]
+}
+
 export interface Requirement {
   text: string
   domain: string
   constraints: string[]
   stakeholders: string[]
+  project_type?: string
+  tech_stack?: string
+  scale_budget?: string
 }
 
 export interface Component {
@@ -76,10 +91,19 @@ export interface AgentDispatch {
   error?: string
 }
 
+export interface Connection {
+  from: string
+  to: string
+  protocol?: string
+  description?: string
+}
+
 export interface SessionState {
   id: string
   requirement: Requirement
+  domain?: string
   components: Component[]
+  connections: Connection[]
   adrs: ADR[]
   failure_modes: FailureMode[]
   phases: Phase[]
@@ -92,6 +116,7 @@ export interface SessionState {
     cost: number
   }
   mermaid_diagram?: string
+  pending_interaction?: PendingInteraction
   created_at: string
   updated_at: string
 }

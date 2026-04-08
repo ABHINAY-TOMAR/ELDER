@@ -1,5 +1,6 @@
-import { ArrowRight, Cpu, Database, GitBranch, Layers, Shield, Zap, Sun, Moon, Menu, X } from 'lucide-react'
+import { Cpu, Database, Layers, Zap, Sun, Moon, Menu, X } from 'lucide-react'
 import { useState, useEffect } from 'react'
+import { Toaster } from 'sonner'
 import RequirementInput from './components/RequirementInput'
 import ArchitectureViewer from './components/ArchitectureViewer'
 import ADRPanel from './components/ADRPanel'
@@ -35,71 +36,103 @@ export default function App() {
   }, [isDarkMode])
 
   const tabs = [
-    { id: 'architecture' as const, label: 'Architecture' },
-    { id: 'phases' as const, label: 'Phases' },
-    { id: 'dispatch' as const, label: 'Dispatch' },
+    { id: 'architecture' as const, label: 'Architecture', icon: '◆' },
+    { id: 'phases' as const, label: 'Phases', icon: '◇' },
+    { id: 'dispatch' as const, label: 'Dispatch', icon: '▸' },
   ]
 
   return (
-    <div className="min-h-screen bg-slate-950 dark:bg-slate-950 light:bg-slate-50 text-slate-100 dark:text-slate-100 light:text-slate-900 transition-colors duration-300">
-      <header className="border-b border-slate-800 dark:border-slate-800 light:border-slate-200 bg-slate-900/50 dark:bg-slate-900/50 light:bg-slate-50/80 backdrop-blur-sm sticky top-0 z-50 transition-colors duration-300">
-        <div className="max-w-7xl mx-auto px-4 py-4">
+    <div className="min-h-screen transition-colors duration-300">
+      <Toaster
+        theme={isDarkMode ? 'dark' : 'light'}
+        position="top-right"
+        toastOptions={{
+          style: {
+            background: 'var(--surface-glass-strong)',
+            border: '1px solid var(--border-glass)',
+            backdropFilter: 'blur(20px)',
+            fontFamily: "'Space Grotesk', sans-serif",
+          },
+        }}
+      />
+
+      {/* ─── Header ─── */}
+      <header className="glass-header sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3">
           <div className="flex items-center justify-between">
+            {/* Logo */}
             <div className="flex items-center gap-3 animate-fade-in">
-              <div className="p-2 bg-gradient-to-br from-violet-600 to-indigo-600 rounded-lg">
-                <Cpu className="w-6 h-6 text-white" />
+              <div className="relative p-2.5 rounded-xl bg-gradient-to-br from-violet-600 to-indigo-600 shadow-lg shadow-violet-600/20">
+                <Cpu className="w-5 h-5 text-white" />
+                <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-violet-600 to-indigo-600 animate-glow opacity-50 blur-sm -z-10" />
               </div>
               <div>
-                <h1 className="text-xl font-bold bg-gradient-to-r from-violet-400 to-indigo-400 bg-clip-text text-transparent dark:from-violet-400 dark:to-indigo-400 light:from-violet-600 light:to-indigo-600">
-                  Architect Agent
+                <h1 className="text-lg font-bold tracking-tight text-primary">
+                  <span className="bg-gradient-to-r from-violet-400 to-indigo-400 bg-clip-text text-transparent">
+                    ELDER
+                  </span>
+                  <span className="text-xs font-normal ml-2 text-muted">
+                    Architect Agent
+                  </span>
                 </h1>
-                <p className="text-xs text-slate-500 dark:text-slate-500 light:text-slate-500">ELDER System Design Engine</p>
+                <p className="text-[10px] tracking-widest uppercase text-muted">
+                  System Design Engine
+                </p>
               </div>
             </div>
 
-            <div className="hidden md:flex items-center gap-2">
-              {tabs.map((tab) => (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
-                    activeTab === tab.id
-                      ? 'bg-violet-600 text-white shadow-lg shadow-violet-600/25'
-                      : 'text-slate-400 dark:text-slate-400 light:text-slate-600 hover:text-white dark:hover:text-white light:hover:text-slate-900 hover:bg-slate-800 dark:hover:bg-slate-800 light:hover:bg-slate-100'
-                  }`}
-                >
-                  {tab.label}
-                </button>
-              ))}
+            {/* Desktop Tabs */}
+            <div className="hidden md:flex items-center gap-1.5">
+              <div className="flex items-center gap-1 p-1 rounded-xl glass">
+                {tabs.map((tab) => (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveTab(tab.id)}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                      activeTab === tab.id
+                        ? 'tab-active text-white'
+                        : 'text-secondary'
+                    }`}
+                  >
+                    <span className="mr-1.5 text-xs opacity-60">{tab.icon}</span>
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+
+              <div className="w-px h-6 mx-2 border-r border-glass" />
+
               <button
                 onClick={() => setIsDarkMode(!isDarkMode)}
-                className="ml-2 p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 dark:text-slate-400 dark:hover:text-white dark:hover:bg-slate-800 light:text-slate-600 light:hover:text-slate-900 light:hover:bg-slate-100 transition-all duration-200"
+                className="p-2.5 rounded-xl glass transition-all hover:scale-105 text-secondary"
                 aria-label="Toggle theme"
               >
-                {isDarkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+                {isDarkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
               </button>
             </div>
 
+            {/* Mobile Controls */}
             <div className="flex md:hidden items-center gap-2">
               <button
                 onClick={() => setIsDarkMode(!isDarkMode)}
-                className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 dark:text-slate-400 dark:hover:text-white dark:hover:bg-slate-800 light:text-slate-600 light:hover:text-slate-900 light:hover:bg-slate-100 transition-all duration-200"
+                className="p-2 rounded-lg glass text-secondary"
                 aria-label="Toggle theme"
               >
-                {isDarkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+                {isDarkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
               </button>
               <button
                 onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 dark:text-slate-400 dark:hover:text-white dark:hover:bg-slate-800 light:text-slate-600 light:hover:text-slate-900 light:hover:bg-slate-100 transition-all duration-200"
+                className="p-2 rounded-lg glass text-secondary"
                 aria-label="Toggle menu"
               >
-                {isMobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+                {isMobileMenuOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
               </button>
             </div>
           </div>
 
-          <div className={`md:hidden mt-4 pb-2 ${isMobileMenuOpen ? 'block' : 'hidden'}`}>
-            <div className="flex flex-col gap-2">
+          {/* Mobile Menu */}
+          <div className={`md:hidden mt-3 pb-2 ${isMobileMenuOpen ? 'animate-slide-down' : 'hidden'}`}>
+            <div className="flex flex-col gap-1.5 p-2 glass rounded-xl">
               {tabs.map((tab) => (
                 <button
                   key={tab.id}
@@ -107,22 +140,24 @@ export default function App() {
                     setActiveTab(tab.id)
                     setIsMobileMenuOpen(false)
                   }}
-                  className={`px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200 text-left ${
-                    activeTab === tab.id
-                      ? 'bg-violet-600 text-white'
-                      : 'text-slate-400 dark:text-slate-400 light:text-slate-600 hover:bg-slate-800 dark:hover:bg-slate-800 light:hover:bg-slate-100'
+                  className={`px-4 py-3 rounded-lg text-sm font-medium transition-all text-left ${
+                    activeTab === tab.id ? 'tab-active text-white' : 'text-secondary'
                   }`}
                 >
+                  <span className="mr-2 opacity-60">{tab.icon}</span>
                   {tab.label}
                 </button>
               ))}
             </div>
           </div>
         </div>
+        <div className="glow-line" />
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 py-8">
+      {/* ─── Main Content ─── */}
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Left Column */}
           <div className="lg:col-span-1 space-y-6">
             <div className="animate-slide-up stagger-1">
               <RequirementInput onSessionUpdate={setSession} />
@@ -131,46 +166,49 @@ export default function App() {
               <FailureModesPanel session={session} />
             </div>
           </div>
+
+          {/* Right (Main) Column */}
           <div className="lg:col-span-2 space-y-6">
             {activeTab === 'architecture' && (
               <>
-                <div className="animate-fade-in">
+                <div className="animate-scale-in">
                   <ArchitectureViewer session={session} />
                 </div>
-                <div className="animate-fade-in stagger-1">
-                  <ADRPanel session={session} />
+                <div className="animate-scale-in stagger-1">
+                  <ADRPanel session={session} onSessionUpdate={setSession} />
                 </div>
               </>
             )}
             {activeTab === 'phases' && (
-              <div className="animate-fade-in">
-                <PhaseBoard session={session} />
+              <div className="animate-scale-in">
+                <PhaseBoard session={session} onSessionUpdate={setSession} />
               </div>
             )}
             {activeTab === 'dispatch' && (
-              <div className="animate-fade-in">
-                <DispatchPanel session={session} />
+              <div className="animate-scale-in">
+                <DispatchPanel session={session} onSessionUpdate={setSession} />
               </div>
             )}
           </div>
         </div>
       </main>
 
-      <footer className="border-t border-slate-800 dark:border-slate-800 light:border-slate-200 mt-12 py-6 transition-colors duration-300">
-        <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-slate-500 dark:text-slate-500 light:text-slate-500">
+      {/* ─── Footer ─── */}
+      <footer className="mt-12 py-6 border-t border-glass">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-muted">
           <div className="flex items-center gap-6">
             <span className="flex items-center gap-2">
-              <Layers className="w-4 h-4" />
+              <Layers className="w-3.5 h-3.5" />
               ELDER v1.0.0
             </span>
             <span className="hidden sm:flex items-center gap-2">
-              <Database className="w-4 h-4" />
+              <Database className="w-3.5 h-3.5" />
               {session?.memory?.length ?? 0} memories
             </span>
           </div>
           <div className="flex items-center gap-4">
-            <span className="flex items-center gap-1">
-              <Zap className="w-4 h-4 text-amber-500" />
+            <span className="flex items-center gap-1.5">
+              <Zap className="w-3.5 h-3.5 text-amber-500" />
               {session?.tokens?.total ?? 0} tokens
             </span>
           </div>

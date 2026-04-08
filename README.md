@@ -1,4 +1,15 @@
+---
+title: ELDER
+emoji: 👴
+colorFrom: blue
+colorTo: indigo
+sdk: docker
+pinned: false
+app_port: 7860
+---
+
 # ELDER - Extracted Legacy Empowered Development Reasoning
+
 
 An AI-powered system architecture design agent that transforms natural language requirements into production-ready architectural blueprints.
 

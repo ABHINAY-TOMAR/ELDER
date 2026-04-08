@@ -4,9 +4,10 @@ from unittest.mock import MagicMock, patch, AsyncMock
 from app.core.token_tracker import ArchitectTokenTracker
 from app.core.memory import ArchitectMemory, Chunk, chunk_markdown, clean_content_for_embedding
 
-class TestWeek1(unittest.TestCase):
+class TestWeek1(unittest.IsolatedAsyncioTestCase):
     """
     Test suite for Week 1 deliverables: Memory Layer and Token Tracking.
+    Using IsolatedAsyncioTestCase for cleaner async testing.
     """
 
     # --- Token Tracker Tests ---
@@ -29,7 +30,7 @@ class TestWeek1(unittest.TestCase):
         self.assertEqual(cost, 0.75)
 
     @patch("app.core.token_tracker.create_client")
-    def test_track_usage_mock(self, mock_create_client):
+    async def test_track_usage_mock(self, mock_create_client):
         # Mock Supabase client
         mock_supabase = MagicMock()
         mock_create_client.return_value = mock_supabase
@@ -37,11 +38,7 @@ class TestWeek1(unittest.TestCase):
         tracker = ArchitectTokenTracker()
         tracker.client = mock_supabase
         
-        # We need to run the async method in a loop
-        loop = asyncio.get_event_loop()
-        cost = loop.run_until_complete(
-            tracker.track_usage("proj_123", "gpt-4o", 1000, 500, "fast")
-        )
+        cost = await tracker.track_usage("proj_123", "gpt-4o", 1000, 500, "fast")
         
         self.assertGreater(cost, 0)
         mock_supabase.table.assert_called_with("token_usage")
@@ -54,6 +51,7 @@ class TestWeek1(unittest.TestCase):
         cleaned = clean_content_for_embedding(raw)
         self.assertNotIn("secret uuid", cleaned)
         self.assertNotIn("<!--", cleaned)
+        # Expected 'Hello world\n\nNew line'
         self.assertEqual(cleaned, "Hello world\n\nNew line")
 
     def test_markdown_chunking(self):
@@ -75,21 +73,24 @@ Final section.
         self.assertEqual(chunks[1].source, "test.md")
 
     def test_large_chunk_splitting(self):
-        # Create a very long paragraph to trigger sub-splitting
-        long_text = "# Header\n" + ("Word " * 500)
-        chunks = chunk_markdown(long_text, max_chunk_size=500)
+        # Create a text large enough to trigger splitting with paragraph breaks.
+        long_text = "# Header\n\n" + "\n\n".join(["LongContent " * 10 for _ in range(5)])
+        chunks = chunk_markdown(long_text, max_chunk_size=50)
         self.assertGreater(len(chunks), 1)
         self.assertEqual(chunks[0].heading, "Header")
 
     @patch("app.core.memory.httpx.AsyncClient.post")
     @patch("app.core.memory.create_client")
-    def test_memory_store_and_search_mock(self, mock_create_client, mock_post):
+    async def test_memory_store_and_search_mock(self, mock_create_client, mock_post):
         # Mock OpenAI Embedding Response
         mock_resp = MagicMock()
         mock_resp.status_code = 200
+        mock_resp.raise_for_status = MagicMock()
         mock_resp.json.return_value = {
             "data": [{"embedding": [0.1] * 1536}]
         }
+        # httpx post is async, but we can mock it as an async return value if needed
+        # Or just use AsyncMock for the post method
         mock_post.return_value = mock_resp
         
         # Mock Supabase
@@ -100,21 +101,19 @@ Final section.
         memory.openai_key = "fake_key"
         memory.client = mock_supabase
         
-        loop = asyncio.get_event_loop()
-        
         # Test Embed
-        embeddings = loop.run_until_complete(memory.embed("test query"))
+        embeddings = await memory.embed("test query")
         self.assertEqual(len(embeddings), 1)
         self.assertEqual(len(embeddings[0]), 1536)
         
         # Test Search (RPC call)
         mock_supabase.rpc().execute.return_value = MagicMock(data=[{"content": "found it"}])
-        results = loop.run_until_complete(memory.search("where is it?"))
+        results = await memory.search("where is it?")
         self.assertEqual(len(results), 1)
         self.assertEqual(results[0]["content"], "found it")
 
     @patch("app.core.memory.create_client")
-    def test_memory_compaction_mock(self, mock_create_client):
+    async def test_memory_compaction_mock(self, mock_create_client):
         mock_supabase = MagicMock()
         mock_create_client.return_value = mock_supabase
         memory = ArchitectMemory()
@@ -129,8 +128,7 @@ Final section.
         async def mock_summarizer(chunks):
             return "Summary of " + " and ".join(chunks)
             
-        loop = asyncio.get_event_loop()
-        summary = loop.run_until_complete(memory.compact("proj_1", mock_summarizer))
+        summary = await memory.compact("proj_1", mock_summarizer)
         
         self.assertEqual(summary, "Summary of chunk 1 and chunk 2")
         # Should have called store_text which calls store_chunk

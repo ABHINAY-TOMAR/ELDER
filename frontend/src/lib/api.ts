@@ -33,3 +33,23 @@ export async function getSession(): Promise<SessionState | null> {
   if (!response.ok) throw new Error('Failed to get session')
   return response.json()
 }
+
+export async function exportDocs(data: any): Promise<Blob> {
+  const response = await fetch(`${API_BASE}/export/docs`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  })
+  if (!response.ok) throw new Error('Failed to export PDF')
+  return response.blob()
+}
+
+export async function exportSlides(data: any): Promise<Blob> {
+  const response = await fetch(`${API_BASE}/export/slides`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  })
+  if (!response.ok) throw new Error('Failed to export PPTX')
+  return response.blob()
+}

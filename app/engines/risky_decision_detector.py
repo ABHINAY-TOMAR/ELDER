@@ -1,79 +1,90 @@
-import structlog
-from typing import List
-from app.models.schemas import RequirementSpec, StackRecommendation
-from app.engines.fast_pattern_matcher import RiskyDecision
+import logging
+from typing import List, Dict, Any, Literal
+from app.models.requirement_spec import RequirementSpec
+from app.engines.fast_pattern_matcher import StackRecommendation, RiskyDecision
 
-logger = structlog.get_logger("architect_agent.risky_decision_detector")
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
-def detect(spec: RequirementSpec, fast_rec: StackRecommendation) -> List[RiskyDecision]:
+class RiskyDecisionDetector:
     """
     Identifies architectural choices that shouldn't be templated.
-    These are decisions that need deeper reasoning (LLM extended thinking).
+    These are decisions that need deeper reasoning (Claude Sonnet 4 extended thinking).
     """
-    logger.info("detecting_risky_decisions_start")
-    
-    risks: List[RiskyDecision] = []
-    
-    # Text helper
-    ft_str = " ".join(spec.key_features + spec.constraints).lower()
-    
-    # 1. UNUSUAL SCALE
-    if spec.expected_users > 10000000 and "scaling" not in ft_str:
-        risks.append(RiskyDecision(
-            decision_type="scaling",
-            reason="Extremely high scale without explicit scaling strategy.",
-            impact="high",
-            why_needs_deep_thinking="Base architectures will fail at 10M+ without precise horizontal and sharding strategies."
-        ))
-    if spec.latency_requirement_ms < 100 and "cache" not in ft_str:
-        risks.append(RiskyDecision(
-            decision_type="performance",
-            reason="Sub-100ms latency without explicit caching.",
-            impact="high",
-            why_needs_deep_thinking="Requires deep caching/CDN/Edge deployment configurations."
-        ))
-        
-    # 2. SECURITY & COMPLIANCE
-    if spec.data_sensitivity == "pii" and "gdpr" not in ft_str and "hipaa" not in ft_str:
-        risks.append(RiskyDecision(
-            decision_type="security",
-            reason="PII data handling but missing GDPR/HIPAA compliance notes.",
-            impact="critical",
-            why_needs_deep_thinking="Need strictly reviewed encryption, isolation, and data retention policies."
-        ))
-    if "payment" in ft_str and "pci" not in ft_str:
-        risks.append(RiskyDecision(
-            decision_type="security",
-            reason="Payment handling mentioned without PCI compliance strategy.",
-            impact="critical",
-            why_needs_deep_thinking="Financial data has catastrophic failure modes. Needs isolation."
-        ))
-        
-    # 3. NOVEL DOMAIN COMBINATIONS
-    if "ai" in ft_str and "real-time" in ft_str and "streaming" in ft_str:
-        risks.append(RiskyDecision(
-            decision_type="complexity",
-            reason="Real-time AI streaming is extremely non-standard.",
-            impact="high",
-            why_needs_deep_thinking="Requires low-latency LLM streaming over WebSockets + Vector processing constraints."
-        ))
-        
-    # 4. TECH MISMATCH
-    if spec.team_size <= 1 and (spec.budget_usd > 50000 or "kubernetes" in ft_str):
-        risks.append(RiskyDecision(
-            decision_type="operational",
-            reason="Team size of 1 with complex/expensive architecture.",
-            impact="medium",
-            why_needs_deep_thinking="High risk of ops burden. Should fallback to serverless/managed paths if possible."
-        ))
-        
-    if spec.timeline_weeks < 4 and len(spec.key_features) > 10:
-        risks.append(RiskyDecision(
-            decision_type="schedule",
-            reason="Tight timeline with enormous feature set.",
-            impact="medium",
-            why_needs_deep_thinking="Needs aggressive MVP scoping / COTS recommendations."
-        ))
 
-    logger.info("detecting_risky_decisions_complete", risks_found=len(risks))
-    return risks
+    def detect(self, spec: RequirementSpec, fast_rec: StackRecommendation) -> List[RiskyDecision]:
+        """
+        Analyze requirements and the proposed fast-path stack for potential risks.
+        """
+        risky_decisions = []
+
+        # --- 1. Unusual Scale ---
+        if spec.expected_users > 1_000_000:
+            risky_decisions.append(RiskyDecision(
+                decision_type="scaling",
+                reason=f"Massive scale requirement ({spec.expected_users} users) detected.",
+                impact="high",
+                why_needs_deep_thinking="Standard PostgreSQL/Redis templates may hit limits; requires evaluation of sharding, global distribution, or Spanner-like DBs."
+            ))
+        
+        if spec.latency_requirement_ms < 50:
+            risky_decisions.append(RiskyDecision(
+                decision_type="performance",
+                reason=f"Extreme latency requirement ({spec.latency_requirement_ms}ms) detected.",
+                impact="high",
+                why_needs_deep_thinking="Requires evaluating Edge computing, specialized network protocols, or C++/Rust core services."
+            ))
+
+        # --- 2. Security & Compliance ---
+        if spec.data_sensitivity == "regulated" or spec.data_sensitivity == "pii":
+            risks_found = []
+            if "compliance" not in " ".join(spec.constraints).lower():
+                risks_found.append("No explicit compliance strategy mentioned for sensitive data.")
+            if "encryption" not in " ".join(spec.constraints).lower():
+                risks_found.append("No encryption requirements specified.")
+            
+            if risks_found:
+                risky_decisions.append(RiskyDecision(
+                    decision_type="security",
+                    reason=" ".join(risks_found),
+                    impact="high",
+                    why_needs_deep_thinking="Sensitive data handling must be architected with clear encryption, audit, and retention policies."
+                ))
+
+        # --- 3. Technology Mismatch / Constraints ---
+        # If constraints explicitly conflict with fast recommendation
+        for constraint in spec.constraints:
+            constraint_lower = constraint.lower()
+            if "must use" in constraint_lower:
+                for category, tech in fast_rec.tech_stack.items():
+                    # If user says "must use MongoDB" but we recommend PostgreSQL
+                    if "mongodb" in constraint_lower and "postgresql" in tech.lower():
+                        risky_decisions.append(RiskyDecision(
+                            decision_type="database",
+                            reason=f"Constraint '{constraint}' conflicts with recommended {tech}.",
+                            impact="medium",
+                            why_needs_deep_thinking="Requires analyzing if the forced database can actually support the requirements (transactions vs scale)."
+                        ))
+                        break
+
+        # --- 4. Complexity vs Team ---
+        if spec.team_size == 1 and len(spec.extracted_features) > 8:
+            risky_decisions.append(RiskyDecision(
+                decision_type="complexity",
+                reason=f"High complexity ({len(spec.extracted_features)} features) for a solo engineer.",
+                impact="medium",
+                why_needs_deep_thinking="Requires aggressive prioritization or serverless/managed-only stack to ensure project viability."
+            ))
+
+        # --- 5. Novel Domain Combinations ---
+        if spec.domain == "ai_native" and "streaming" in " ".join(spec.extracted_features).lower():
+             risky_decisions.append(RiskyDecision(
+                decision_type="real-time-ai",
+                reason="AI Agent logic combined with real-time streaming data.",
+                impact="high",
+                why_needs_deep_thinking="Requires careful orchestration to avoid inference latency blocking the data stream."
+            ))
+
+        logger.info(f"Detected {len(risky_decisions)} risky decisions for project {spec.project_name}.")
+        return risky_decisions

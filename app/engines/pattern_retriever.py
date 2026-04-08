@@ -1,51 +1,65 @@
-import os
-import structlog
-from typing import List, Dict, Optional
-from pydantic import BaseModel
-from app.models.schemas import RequirementSpec
+import logging
+from typing import List, Dict, Any, Optional
+from pydantic import BaseModel, Field
+from app.models.requirement_spec import RequirementSpec
 from app.core.memory import ArchitectMemory
 
-logger = structlog.get_logger("architect_agent.pattern_retriever")
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 class SimilarArchitecture(BaseModel):
     project_id: str
     similarity_score: float
     tech_stack: Dict[str, str]
     services: List[str]
-    lessons_learned: str
-    anti_patterns_avoided: List[str]
+    rationale: str
 
-async def retrieve_similar(spec: RequirementSpec) -> List[SimilarArchitecture]:
-    logger.info("retrieving_similar_architectures_start")
-    
-    memory = ArchitectMemory()
-    
-    # Text representation of requirements for semantic search
-    spec_text = f"Architecture for Features: {', '.join(spec.key_features)}. Constraints: {', '.join(spec.constraints)}. Team Size: {spec.team_size}. Budget: {spec.budget_usd}."
-    
-    try:
-        # Search in the 'architecture' category
-        results = await memory.search(
-            query=spec_text,
-            category="architecture",
-            limit=5
+class PatternRetriever:
+    """
+    Retrieves similar past architectures using vector search to inform the current design.
+    """
+
+    def __init__(self, memory: ArchitectMemory):
+        self.memory = memory
+
+    async def retrieve_similar(self, spec: RequirementSpec, limit: int = 5) -> List[SimilarArchitecture]:
+        """
+        Search pgvector for architectures similar to the current requirement.
+        """
+        # 1. Create a query string from the spec for embedding
+        query_text = (
+            f"Project: {spec.project_name}. "
+            f"Domain: {spec.domain}. "
+            f"Scale: {spec.expected_users} users. "
+            f"Features: {', '.join(spec.extracted_features)}. "
+            f"Constraints: {', '.join(spec.constraints)}."
         )
-        
-        matches = []
-        for item in results:
-            value = item.get("value", {})
-            matches.append(SimilarArchitecture(
-                project_id=item.get("key", "unknown"),
-                similarity_score=item.get("similarity", 0.0), # Assuming rpc returns similarity
-                tech_stack=value.get("tech_stack", {}),
-                services=value.get("services", []),
-                lessons_learned=value.get("lessons_learned", "No specific lessons recorded."),
-                anti_patterns_avoided=value.get("anti_patterns_avoided", [])
-            ))
+
+        logger.info(f"Retrieving patterns similar to: {spec.project_name}")
+
+        # 2. Search memory (uses Supabase match_architect_memory RPC)
+        results = await self.memory.search(
+            query=query_text,
+            category="architecture",
+            limit=limit
+        )
+
+        # 3. Format results
+        similar = []
+        for res in results:
+            # result might have 'similarity' key from RPC
+            similarity = res.get("similarity", 0.0)
             
-        logger.info("retrieving_similar_architectures_success", matches=len(matches))
-        return matches
-        
-    except Exception as e:
-        logger.error("retrieving_similar_architectures_failed", error=str(e))
-        return []
+            # The 'metadata' field in memory contains the original architecture fields
+            metadata = res.get("metadata", {})
+            
+            similar.append(SimilarArchitecture(
+                project_id=res.get("source", "unknown"),
+                similarity_score=similarity,
+                tech_stack=metadata.get("tech_stack", {}),
+                services=metadata.get("services", []),
+                rationale=metadata.get("rationale", "No rationale provided.")
+            ))
+
+        return similar

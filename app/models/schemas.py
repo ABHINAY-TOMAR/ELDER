@@ -10,6 +10,16 @@ class RequirementInput(BaseModel):
 class ReviewRequest(BaseModel):
     architecture_details: Dict[str, Any] = Field(..., description="Raw architecture details to critique")
 
+class InteractionOption(BaseModel):
+    id: str
+    label: str
+    recommended: bool = False
+
+class PendingInteraction(BaseModel):
+    field: str
+    question: str
+    options: List[InteractionOption]
+
 class DispatchRequest(BaseModel):
     project_id: str = Field(..., description="Unique ID for the project")
 
@@ -116,6 +126,7 @@ class Architecture(BaseModel):
     data_flows: List[DataFlow] = Field(default_factory=list, description="Data movement specifications")
     implementation_phases: List[Phase] = Field(default_factory=list, description="Ordered phases")
     estimated_effort_weeks: int = Field(default=1, ge=1, le=52, description="Total effort")
+    pending_interaction: Optional[PendingInteraction] = None
 
     def has_caching(self) -> bool:
         return "cache" in self.tech_stack.get("tech_stack", "").lower()

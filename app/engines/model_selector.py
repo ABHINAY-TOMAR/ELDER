@@ -1,55 +1,54 @@
-import os
-from typing import Literal, Optional, Dict
-from enum import Enum
+import logging
+from typing import Literal, Optional, List
+from pydantic import BaseModel
 
-class ModelComplexity(str, Enum):
-    LOW = "low"
-    MEDIUM = "medium"
-    HIGH = "high"
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 class ModelSelector:
     """
-    Selects reasoning model based on task type, complexity, and available budget.
-    Drawn from FastCode patterns.
+    Intelligent model selector that chooses the optimal LLM based on task complexity and budget.
     """
-    
-    MODELS = {
-        "claude-3-5-haiku-20241022": {
-            "speed": 0.95,
-            "cost": 0.25, # input/output combined weight
-            "quality": 0.70,
-            "max_tokens": 4096
-        },
-        "claude-3-5-sonnet-20241022": {
-            "speed": 0.60,
-            "cost": 3.00,
-            "quality": 0.95,
-            "max_tokens": 8192
-        }
-    }
 
-    async def select_model(
-        self,
-        complexity: ModelComplexity,
-        budget_remaining: Optional[float] = None,
-        use_extended_thinking: bool = False
+    def __init__(self, default_model: str = "claude-3-5-sonnet"):
+        self.default_model = default_model
+
+    def select(
+        self, 
+        complexity: Literal["low", "medium", "high"], 
+        budget_remaining_usd: float,
+        is_risky: bool = False
     ) -> str:
-        """Determines best model for a reasoning task."""
+        """
+        Choose between fast/cheap models (Haiku) and deep/expensive models (Sonnet/o1).
+        """
+        # 1. High-risk or high-complexity always gets the best model if budget allows
+        if (complexity == "high" or is_risky) and budget_remaining_usd > 5.0:
+            logger.info("Selecting high-performance model (Sonnet) due to complexity/risk.")
+            return "claude-3-5-sonnet"
         
-        # High complexity or explicit deep thinking request always forces Sonnet
-        if complexity == ModelComplexity.HIGH or use_extended_thinking:
-            return "anthropic/claude-3-5-sonnet-20241022" if os.getenv("OPENROUTER_API_KEY") else "claude-3-5-sonnet-20241022"
+        # 2. Medium complexity with decent budget
+        if complexity == "medium" and budget_remaining_usd > 2.0:
+            return "claude-3-5-sonnet"
+        
+        # 3. Budget constrained or low complexity
+        if budget_remaining_usd < 0.50:
+            logger.warning("Budget extremely low. Forcing low-cost model (Haiku).")
+            return "claude-3-5-haiku"
             
-        # If budget is extremely constrained, fallback to Haiku regardless of medium complexity
-        if budget_remaining and budget_remaining < 0.05:
-             return "claude-3-5-haiku-20241022"
-             
-        # Medium complexity: Sonnet if budget allows, else Haiku
-        if complexity == ModelComplexity.MEDIUM:
-            if budget_remaining and budget_remaining > 0.5:
-                return "claude-3-5-sonnet-20241022"
-            else:
-                return "claude-3-5-haiku-20241022"
-        
-        # Low complexity: Always Haiku
-        return "claude-3-5-haiku-20241022"
+        if complexity == "low":
+            return "claude-3-5-haiku"
+
+        # Default fallback
+        return self.default_model
+
+    def get_reasoning_config(self, model: str) -> dict:
+        """Return model-specific inference parameters."""
+        if "sonnet" in model:
+            return {"temperature": 0.5, "max_tokens": 4000}
+        elif "haiku" in model:
+            return {"temperature": 0.2, "max_tokens": 2000}
+        elif "o1" in model:
+            return {"temperature": 1.0, "max_tokens": 8000}
+        return {"temperature": 0.7, "max_tokens": 2000}

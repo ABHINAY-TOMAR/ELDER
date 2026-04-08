@@ -1,96 +1,128 @@
-import { AlertTriangle, ChevronDown, ChevronUp } from 'lucide-react'
+import { AlertTriangle, ChevronDown, ChevronUp, ShieldAlert } from 'lucide-react'
 import { useState } from 'react'
-import clsx from 'clsx'
+import Skeleton from 'react-loading-skeleton'
+import 'react-loading-skeleton/dist/skeleton.css'
 import type { SessionState, FailureMode } from '../lib/types'
 
 interface FailureModesPanelProps {
   session: SessionState | null
 }
 
-const PROBABILITY_STYLES = {
-  low: 'text-green-400 bg-green-400/10',
-  medium: 'text-amber-400 bg-amber-400/10',
-  high: 'text-red-400 bg-red-400/10',
-}
-
-const IMPACT_STYLES = {
-  low: 'text-green-400 bg-green-400/10',
-  medium: 'text-amber-400 bg-amber-400/10',
-  high: 'text-red-400 bg-red-400/10',
-}
-
 function FailureModeRow({ mode }: { mode: FailureMode }) {
   const [expanded, setExpanded] = useState(false)
-  const riskScore = { low: 1, medium: 2, high: 3 }[mode.probability] * { low: 1, medium: 2, high: 3 }[mode.impact]
+  const riskScore =
+    ({ low: 1, medium: 2, high: 3 }[mode.probability] ?? 1) *
+    ({ low: 1, medium: 2, high: 3 }[mode.impact] ?? 1)
+  const riskColor = riskScore >= 6 ? '#f87171' : riskScore >= 3 ? '#fbbf24' : '#4ade80'
 
   return (
-    <div className="border-b border-slate-800 last:border-b-0">
+    <div className="border-b border-glass last:border-b-0">
       <button
         onClick={() => setExpanded(!expanded)}
-        className="w-full flex items-center justify-between p-4 hover:bg-slate-800/50 transition-colors"
+        className="w-full flex items-center justify-between p-4 transition-colors hover:bg-white/[0.02]"
       >
         <div className="flex items-center gap-3">
-          <AlertTriangle className={clsx(
-            'w-4 h-4',
-            riskScore >= 6 ? 'text-red-400' : riskScore >= 3 ? 'text-amber-400' : 'text-green-400'
-          )} />
+          <AlertTriangle className="w-4 h-4" style={{ color: riskColor }} />
           <div className="text-left">
-            <p className="text-sm font-medium text-slate-200">{mode.component}</p>
-            <p className="text-xs text-slate-500">{mode.failure_type}</p>
+            <p className="text-sm font-medium text-primary">
+              {mode.component}
+            </p>
+            <p className="text-xs text-muted">
+              {mode.failure_type}
+            </p>
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <span className={clsx('px-2 py-0.5 text-xs rounded', PROBABILITY_STYLES[mode.probability])}>
+          <span
+            className={`badge ${
+              mode.probability === 'low' ? 'badge-success' :
+              mode.probability === 'medium' ? 'badge-warning' :
+              'badge-error'
+            }`}
+          >
             {mode.probability}
           </span>
-          <span className={clsx('px-2 py-0.5 text-xs rounded', IMPACT_STYLES[mode.impact])}>
+          <span
+            className={`badge ${
+              mode.impact === 'low' ? 'badge-success' :
+              mode.impact === 'medium' ? 'badge-warning' :
+              'badge-error'
+            }`}
+          >
             {mode.impact}
           </span>
-          {expanded ? <ChevronUp className="w-4 h-4 text-slate-500" /> : <ChevronDown className="w-4 h-4 text-slate-500" />}
+          {expanded ? (
+            <ChevronUp className="w-4 h-4 text-muted" />
+          ) : (
+            <ChevronDown className="w-4 h-4 text-muted" />
+          )}
         </div>
       </button>
 
       {expanded && (
-        <div className="px-4 pb-4 pt-2 ml-7">
-          <p className="text-xs text-slate-500 uppercase tracking-wider mb-1">Mitigation</p>
-          <p className="text-sm text-slate-400">{mode.mitigation}</p>
+        <div className="px-4 pb-4 pt-1 ml-7 animate-slide-down">
+          <p className="text-[10px] font-medium tracking-widest uppercase mb-1 text-muted">
+            Mitigation
+          </p>
+          <p className="text-sm text-secondary">
+            {mode.mitigation}
+          </p>
         </div>
       )}
     </div>
   )
 }
 
-export default function FailureModesPanel({ session }: FailureModesPanelProps) {
-  if (!session) {
-    return (
-      <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
-        <div className="flex items-center gap-2 mb-4">
-          <AlertTriangle className="w-5 h-5 text-amber-400" />
-          <h2 className="text-lg font-semibold">Failure Modes</h2>
+function FailureSkeleton() {
+  return (
+    <div className="space-y-3 p-4">
+      {[1, 2, 3].map((i) => (
+        <div key={i} className="flex items-center gap-3">
+          <Skeleton circle width={20} height={20} />
+          <div className="flex-1">
+            <Skeleton height={12} width="60%" />
+            <Skeleton height={10} width="40%" className="mt-1" />
+          </div>
+          <Skeleton width={50} height={20} borderRadius={20} />
         </div>
-        <p className="text-sm text-slate-500 text-center py-8">
-          No failure modes identified yet
-        </p>
-      </div>
-    )
-  }
+      ))}
+    </div>
+  )
+}
 
-  const failureModes = session.failure_modes || []
+export default function FailureModesPanel({ session }: FailureModesPanelProps) {
+  const failureModes = session?.failure_modes || []
 
   return (
-    <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
-      <div className="flex items-center justify-between px-4 py-3 border-b border-slate-800">
-        <div className="flex items-center gap-2">
-          <AlertTriangle className="w-5 h-5 text-amber-400" />
-          <h2 className="text-lg font-semibold">Failure Modes</h2>
+    <div className="glass-panel !p-0 overflow-hidden">
+      <div className="flex items-center justify-between px-5 py-4 border-b border-glass">
+        <div className="flex items-center gap-2.5">
+          <div className="p-2 rounded-lg bg-orange-500/10 border border-orange-500/20">
+            <ShieldAlert className="w-4 h-4 text-amber-400" />
+          </div>
+          <div>
+            <h2 className="text-base font-semibold text-primary">Failure Modes</h2>
+            <p className="text-xs text-muted">
+              {failureModes.length > 0 ? `${failureModes.length} identified` : 'Risk analysis'}
+            </p>
+          </div>
         </div>
-        <span className="text-sm text-slate-500">{failureModes.length} identified</span>
+        {failureModes.length > 0 && (
+          <span className="badge badge-warning">{failureModes.length}</span>
+        )}
       </div>
 
-      {failureModes.length === 0 ? (
-        <p className="text-sm text-slate-500 text-center py-8">
-          No failure modes identified yet
-        </p>
+      {!session ? (
+        <FailureSkeleton />
+      ) : failureModes.length === 0 ? (
+        <div className="text-center py-10 px-5">
+          <div className="w-14 h-14 mx-auto mb-3 rounded-2xl flex items-center justify-center bg-surface-glass-light">
+            <ShieldAlert className="w-7 h-7 text-muted" />
+          </div>
+          <p className="text-sm text-muted">
+            No failure modes identified yet
+          </p>
+        </div>
       ) : (
         <div>
           {failureModes.map((mode, i) => (

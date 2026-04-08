@@ -1,129 +1,104 @@
-"""
-Domain Classifier Engine - Keyword Matching Version
-Classifies projects into domains using keyword matching.
-No LLM dependencies - fast and deterministic.
-"""
-
-from typing import List
-from pydantic import BaseModel
 import logging
+from typing import List, Literal, Dict, Any, Tuple
+from pydantic import BaseModel, Field
+from app.models.requirement_spec import RequirementSpec
 
-from app.models.schemas import RequirementSpec
-
-logger = logging.getLogger("architect_agent.domain_classifier")
-
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 class DomainClassification(BaseModel):
-    primary_domain: str
-    secondary_domains: List[str]
-    confidence: float
+    """
+    Result of the domain classification process.
+    """
+    primary_domain: Literal["microservices", "ai_native", "data_pipeline"]
+    secondary_domains: List[str] = Field(default_factory=list)
+    confidence: float = Field(..., ge=0.0, le=1.0)
     reasoning: str
-
 
 class DomainClassifier:
     """
-    Classifies projects into domains using keyword matching.
-    Three domains: microservices, ai_native, data_pipeline
+    Fast, rule-based classifier that categorizes requirements into architectural domains.
     """
-    
-    def __init__(self):
-        # Domain keywords
-        self.domain_keywords = {
-            "ai_native": [
-                "ai", "agent", "agentic", "llm", "ml", "machine learning",
-                "rag", "vector", "embedding", "semantic search",
-                "model", "inference", "training", "neural", "gpt", "claude"
-            ],
-            "microservices": [
-                "microservice", "rest", "api", "grpc", "service mesh",
-                "kubernetes", "k8s", "docker", "container",
-                "gateway", "load balancer", "service discovery",
-                "crud", "web", "backend", "frontend", "saas"
-            ],
-            "data_pipeline": [
-                "etl", "pipeline", "streaming", "batch", "data warehouse",
-                "analytics", "spark", "airflow", "kafka", "flink",
-                "data lake", "warehouse", "dbt", "transform",
-                "ingestion", "orchestration"
-            ]
-        }
-    
+
+    SIGNALS = {
+        "microservices": [
+            "api", "rest", "grpc", "microservice", "service oriented", "crud", 
+            "scalability", "kubernetes", "docker", "traditional saas", "web app",
+            "dashboard", "multi-tenant"
+        ],
+        "ai_native": [
+            "agent", "agentic", "orchestration", "llm", "rag", "autonomous", 
+            "vector db", "embedding", "reasoning", "multimodal", "inference",
+            "openai", "anthropic", "memory system", "langchain", "crewai"
+        ],
+        "data_pipeline": [
+            "etl", "pipeline", "streaming", "batch", "analytics", "warehouse", 
+            "bigquery", "snowflake", "spark", "kafka", "airflow", "transformation",
+            "aggregation", "data lake", "delta lake"
+        ]
+    }
+
     def classify(self, spec: RequirementSpec) -> DomainClassification:
         """
-        Classify project domain based on RequirementSpec.
-        
-        Args:
-            spec: Parsed requirements
-            
-        Returns:
-            DomainClassification with primary domain and confidence
+        Classify a RequirementSpec based on features, constraints, and keywords.
         """
-        logger.info(f"Classifying domain for {len(spec.key_features)} features")
-        
-        # Text to scan (from key features and constraints)
-        text_to_scan = " ".join(spec.key_features + spec.constraints).lower()
-        
-        # Score each domain
+        # 1. Combine all relevant text fields to search for signals
+        text_to_analyze = (
+            f"{spec.project_name} "
+            f"{' '.join(spec.extracted_features)} "
+            f"{' '.join(spec.constraints)} "
+        ).lower()
+
+        # 2. Score each domain
         scores = {
-            "ai_native": 0.0,
             "microservices": 0.0,
+            "ai_native": 0.0,
             "data_pipeline": 0.0
         }
-        
-        # Count keyword matches
-        for domain, keywords in self.domain_keywords.items():
+
+        # Weighting
+        # Direct domain mention in spec (from parser) is a strong hint but we re-verify
+        if spec.domain in scores:
+            scores[spec.domain] += 2.0
+
+        for domain, keywords in self.SIGNALS.items():
             for keyword in keywords:
-                if keyword in text_to_scan:
-                    scores[domain] += 1.0
+                if keyword in text_to_analyze:
+                    # Give higher weight to some very specific keywords
+                    if domain == "ai_native" and keyword in ["agent", "rag", "autonomous"]:
+                        scores[domain] += 1.5
+                    elif domain == "data_pipeline" and keyword in ["etl", "pipeline", "batch"]:
+                        scores[domain] += 1.5
+                    else:
+                        scores[domain] += 1.0
+
+        # 3. Rank domains
+        sorted_domains = sorted(scores.items(), key=lambda x: x[1], reverse=True)
+        primary_domain, primary_score = sorted_domains[0]
         
-        # Apply feature-based boosts
-        if "AI" in spec.key_features or "RAG" in spec.key_features:
-            scores["ai_native"] += 3.0
+        # 4. Determine secondary domains (any domain with score > threshold)
+        secondary = [d for d, s in sorted_domains[1:] if s > 1.0]
+
+        # 5. Calculate confidence (normalized score)
+        total_score = sum(scores.values())
+        confidence = primary_score / total_score if total_score > 0 else 0.5
         
-        if "api" in spec.key_features:
-            scores["microservices"] += 2.0
-        
-        if "ETL" in spec.key_features or "streaming" in spec.key_features:
-            scores["data_pipeline"] += 3.0
-        
-        # Determine primary domain
-        max_score = max(scores.values())
-        
-        if max_score == 0:
-            # No clear signals - default to microservices
-            primary_domain = "microservices"
-            confidence = 0.5
-            reasoning = "No strong domain signals detected. Defaulting to microservices as general-purpose domain."
-        else:
-            primary_domain = max(scores, key=lambda k: scores[k])
-            # Normalize confidence (0.6 to 1.0 range)
-            confidence = min(0.6 + (max_score / 10.0), 1.0)
-            
-            matched_keywords = [
-                kw for kw in self.domain_keywords[primary_domain]
-                if kw in text_to_scan
-            ]
-            reasoning = f"Detected {primary_domain} domain. Matched keywords: {', '.join(matched_keywords[:5])}"
-        
-        # Determine secondary domains
-        secondary_domains = [
-            domain for domain, score in scores.items()
-            if domain != primary_domain and score > 0
-        ]
-        
-        classification = DomainClassification(
-            primary_domain=primary_domain,
-            secondary_domains=secondary_domains,
+        # Clamp confidence for realism
+        confidence = min(0.95, max(0.5, confidence))
+
+        # 6. Generate reasoning
+        reasons = []
+        if primary_score > 0:
+            reasons.append(f"Identified strong signals for {primary_domain} in requirements.")
+        if secondary:
+            reasons.append(f"Detected overlap with {', '.join(secondary)} domain(s).")
+        if total_score == 0:
+            reasons.append("No specific domain signals found; defaulting to microservices.")
+
+        return DomainClassification(
+            primary_domain=primary_domain, # type: ignore
+            secondary_domains=secondary,
             confidence=confidence,
-            reasoning=reasoning
+            reasoning=" ".join(reasons)
         )
-        
-        logger.info(f"Classified as {primary_domain} (confidence: {confidence:.2f})")
-        return classification
-
-
-# Module-level function for backward compatibility
-def classify(spec: RequirementSpec) -> DomainClassification:
-    """Classify domain (non-async version)"""
-    classifier = DomainClassifier()
-    return classifier.classify(spec)
