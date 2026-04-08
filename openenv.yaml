@@ -1,0 +1,117 @@
+# OpenEnv Configuration for Architect Agent
+# This file defines the task structure for the OpenEnv grading environment
+
+name: "architect-agent"
+version: "1.0.0"
+description: "AI system architect that designs microservices, AI-native, and data pipeline systems"
+
+domains:
+  - microservices
+  - ai_native
+  - data_pipeline
+
+tasks:
+  - id: "tech_stack"
+    name: "Tech Stack Recommendation"
+    difficulty: "easy"
+    domain: "all"
+    description: "Given project requirements, recommend an optimal technology stack"
+    action_schema:
+      type: "object"
+      properties:
+        api_framework:
+          type: "string"
+          description: "Recommended API framework (e.g., FastAPI, Express, Django)"
+        database:
+          type: "string"
+          description: "Recommended primary database (e.g., PostgreSQL, MongoDB)"
+        cache:
+          type: "string"
+          description: "Recommended caching layer (e.g., Redis, Memcached)"
+        message_queue:
+          type: "string"
+          description: "Recommended message queue (e.g., RabbitMQ, Kafka)"
+        monitoring:
+          type: "string"
+          description: "Recommended monitoring solution (e.g., Prometheus, DataDog)"
+      required:
+        - api_framework
+        - database
+
+  - id: "anti_pattern"
+    name: "Architectural Anti-Pattern Detection"
+    difficulty: "medium"
+    domain: "all"
+    description: "Identify architectural anti-patterns in a given system design"
+    action_schema:
+      type: "object"
+      properties:
+        findings:
+          type: "array"
+          items:
+            type: "string"
+          description: "List of identified anti-patterns"
+      required:
+        - findings
+
+  - id: "full_design"
+    name: "Full Architecture Design"
+    difficulty: "hard"
+    domain: "all"
+    description: "Design a complete system with services, dependencies, and integration"
+    action_schema:
+      type: "object"
+      properties:
+        project_id:
+          type: "string"
+        project_name:
+          type: "string"
+        domain:
+          type: "string"
+        tech_stack:
+          type: "object"
+        services:
+          type: "array"
+        adrs:
+          type: "array"
+        failure_modes:
+          type: "array"
+        phases:
+          type: "array"
+      required:
+        - project_name
+        - domain
+        - services
+
+grading:
+  tech_stack:
+    max_score: 1.0
+    weights:
+      api_framework: 0.2
+      database: 0.2
+      cache: 0.2
+      message_queue: 0.2
+      monitoring: 0.2
+
+  anti_pattern:
+    max_score: 1.0
+    scoring: "percentage_found"
+
+  full_design:
+    max_score: 1.0
+    weights:
+      sensibility: 0.4
+      decomposition: 0.3
+      integration: 0.3
+
+endpoints:
+  reset: "/openenv/reset"
+  step: "/openenv/step"
+  baseline: "/openenv/baseline"
+  tasks: "/openenv/tasks"
+
+metadata:
+  author: "ELDER Agent"
+  license: "MIT"
+  repository: "https://github.com/ABHINAY-TOMAR/ELDER"
+  created: "2026-04-07"

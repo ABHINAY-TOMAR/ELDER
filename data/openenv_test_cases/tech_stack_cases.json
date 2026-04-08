@@ -1,0 +1,104 @@
+{
+  "cases": [
+    {
+      "id": "case_001",
+      "name": "E-commerce Microservices (Small Team)",
+      "input": {
+        "project_name": "E-commerce",
+        "domain": "microservices",
+        "team_size": 2,
+        "budget_usd": 5000,
+        "expected_users": 10000,
+        "latency_requirement_ms": 500,
+        "data_sensitivity": "internal"
+      },
+      "output": {
+        "api_framework": "fastapi",
+        "database": "postgresql",
+        "cache": "redis",
+        "message_queue": "rabbitmq",
+        "monitoring": "prometheus"
+      }
+    },
+    {
+      "id": "case_002",
+      "name": "AI Agent Platform (Solo Developer)",
+      "input": {
+        "project_name": "AI Agent Platform",
+        "domain": "ai_native",
+        "team_size": 1,
+        "budget_usd": 2000,
+        "expected_users": 1000,
+        "latency_requirement_ms": 2000,
+        "data_sensitivity": "public"
+      },
+      "output": {
+        "api_framework": "fastapi",
+        "database": "supabase",
+        "cache": "none",
+        "message_queue": "none",
+        "monitoring": "basic"
+      }
+    },
+    {
+      "id": "case_003",
+      "name": "Enterprise SaaS (Large Team)",
+      "input": {
+        "project_name": "Enterprise SaaS Platform",
+        "domain": "microservices",
+        "team_size": 10,
+        "budget_usd": 100000,
+        "expected_users": 1000000,
+        "latency_requirement_ms": 100,
+        "data_sensitivity": "pii"
+      },
+      "output": {
+        "api_framework": "fastapi",
+        "database": "postgresql",
+        "cache": "redis",
+        "message_queue": "kafka",
+        "monitoring": "datadog"
+      }
+    },
+    {
+      "id": "case_004",
+      "name": "Data Pipeline ETL",
+      "input": {
+        "project_name": "Data Pipeline Platform",
+        "domain": "data_pipeline",
+        "team_size": 3,
+        "budget_usd": 15000,
+        "expected_users": 100,
+        "latency_requirement_ms": 5000,
+        "data_sensitivity": "internal"
+      },
+      "output": {
+        "api_framework": "none",
+        "database": "postgresql",
+        "cache": "none",
+        "message_queue": "kafka",
+        "monitoring": "airflow"
+      }
+    },
+    {
+      "id": "case_005",
+      "name": "Startup MVP",
+      "input": {
+        "project_name": "Startup MVP",
+        "domain": "microservices",
+        "team_size": 2,
+        "budget_usd": 3000,
+        "expected_users": 5000,
+        "latency_requirement_ms": 1000,
+        "data_sensitivity": "public"
+      },
+      "output": {
+        "api_framework": "fastapi",
+        "database": "postgresql",
+        "cache": "redis",
+        "message_queue": "none",
+        "monitoring": "prometheus"
+      }
+    }
+  ]
+}

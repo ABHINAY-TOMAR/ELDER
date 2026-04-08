@@ -1,0 +1,16 @@
+{
+  "name": "Multi-Agent Support",
+  "domain": "ai_native",
+  "description": "Autonomous customer support system using multiple specialized agents.",
+  "features": ["Intent Classification", "RAG Knowledge Base", "Ticket Resolution", "Sentiment Analysis"],
+  "constraints": ["Low latency reasoning", "Audit trail for all agent decisions"],
+  "tech_stack": {
+    "api_framework": "FastAPI",
+    "orchestration": "LangGraph",
+    "database": "Supabase",
+    "vector_db": "pgvector",
+    "memory": "Redis"
+  },
+  "services": ["gateway-agent", "billing-specialist-agent", "technical-support-agent", "knowledge-retriever"],
+  "rationale": "LangGraph allows complex stateful orchestration between specialized agents."
+}
