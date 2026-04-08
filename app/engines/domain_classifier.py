@@ -95,7 +95,7 @@ class DomainClassifier:
             confidence = 0.5
             reasoning = "No strong domain signals detected. Defaulting to microservices as general-purpose domain."
         else:
-            primary_domain = max(scores, key=scores.get)
+            primary_domain = max(scores, key=lambda k: scores[k])
             # Normalize confidence (0.6 to 1.0 range)
             confidence = min(0.6 + (max_score / 10.0), 1.0)
             
@@ -127,40 +127,3 @@ def classify(spec: RequirementSpec) -> DomainClassification:
     """Classify domain (non-async version)"""
     classifier = DomainClassifier()
     return classifier.classify(spec)
-            
-    for kw in ms_keywords:
-        if kw in text_to_scan:
-            ms_score += 1.0
-            
-    # Default behavior mapping
-    total = ai_score + dp_score + ms_score
-    if total == 0:
-        logger.info("classifying_domain_fallback")
-        return DomainClassification(
-            primary_domain="microservices",
-            secondary_domains=[],
-            confidence=1.0,
-            reasoning="Rule 4: Defaulting to microservices as no specific signals detected."
-        )
-        
-    scores = {
-        "ai_native": ai_score / total,
-        "data_pipeline": dp_score / total,
-        "microservices": ms_score / total
-    }
-    
-    sorted_domains = sorted(scores.items(), key=lambda x: x[1], reverse=True)
-    primary = sorted_domains[0][0]
-    confidence = sorted_domains[0][1]
-    
-    secondary = [d for d, s in sorted_domains[1:] if s > 0.2]
-    
-    classification = DomainClassification(
-        primary_domain=primary,
-        secondary_domains=secondary,
-        confidence=confidence,
-        reasoning=f"Evaluated domain signals. Primary selected: {primary} with confidence {confidence:.2f}."
-    )
-    
-    logger.info("classifying_domain_success", primary=classification.primary_domain)
-    return classification

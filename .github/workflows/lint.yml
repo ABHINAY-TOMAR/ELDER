@@ -1,0 +1,52 @@
+name: Lint
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          
+      - name: Install linting tools
+        run: pip install ruff black mypy
+          
+      - name: Run Ruff
+        run: |
+          cd app
+          ruff check .
+          
+      - name: Run Black
+        run: |
+          cd app
+          black --check .
+          
+      - name: Run MyPy
+        run: |
+          cd app
+          mypy . --ignore-missing-imports
+          
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          
+      - name: Install frontend dependencies
+        run: |
+          cd frontend
+          npm ci
+          
+      - name: Run ESLint
+        run: |
+          cd frontend
+          npm run lint

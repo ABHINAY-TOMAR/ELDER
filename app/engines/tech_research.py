@@ -86,8 +86,18 @@ class TechResearchLoop:
         out_tokens = len(final_synth) // 4
         await self.tracker.track_usage(self.project_id, model, in_tokens, out_tokens, "deep")
         
-        # Rough parse
-        chosen = current_alternatives[0] if current_alternatives else initial_alternatives[0]
+        # Rough parse with guard for empty lists
+        if current_alternatives:
+            chosen = current_alternatives[0]
+        elif initial_alternatives:
+            chosen = initial_alternatives[0]
+        else:
+            logger.error("tech_research_no_alternatives", decision_type=decision_type)
+            return {
+                "chosen": None,
+                "alternatives_rejected": [],
+                "reasoning": "No alternatives provided for research"
+            }
         
         return {
             "chosen": chosen,

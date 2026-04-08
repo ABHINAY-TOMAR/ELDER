@@ -66,7 +66,29 @@ async def call_llm(
         payload["response_format"] = response_format
 
     async with httpx.AsyncClient() as client:
-        response = await client.post(f"{base_url}/chat/completions", headers=headers, json=payload, timeout=60.0)
-        response.raise_for_status()
-        data = response.json()
-        return data["choices"][0]["message"]["content"]
+        try:
+            response = await client.post(f"{base_url}/chat/completions", headers=headers, json=payload, timeout=60.0)
+            response.raise_for_status()
+            data = response.json()
+            
+            if "error" in data:
+                raise LLMError(f"API error: {data['error']}")
+            
+            if not data.get("choices") or not data["choices"][0].get("message"):
+                raise LLMError("Invalid response format from LLM API")
+            
+            return data["choices"][0]["message"]["content"]
+            
+        except httpx.TimeoutException:
+            raise LLMError(f"Request timed out after 60 seconds to {base_url}")
+        except httpx.HTTPStatusError as e:
+            raise LLMError(f"HTTP error {e.response.status_code}: {e.response.text[:200]}")
+        except httpx.RequestError as e:
+            raise LLMError(f"Request failed: {str(e)}")
+        except (KeyError, IndexError, ValueError) as e:
+            raise LLMError(f"Invalid response parsing: {str(e)}")
+
+
+class LLMError(Exception):
+    """Custom exception for LLM API errors."""
+    pass

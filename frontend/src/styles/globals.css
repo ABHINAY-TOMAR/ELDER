@@ -1,0 +1,172 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --color-bg-primary: #0f172a;
+  --color-bg-secondary: #1e293b;
+  --color-bg-tertiary: #334155;
+  --color-text-primary: #f1f5f9;
+  --color-text-secondary: #94a3b8;
+  --color-text-muted: #64748b;
+  --color-border: #475569;
+  --color-accent: #6366f1;
+  --color-accent-hover: #818cf8;
+  --color-success: #22c55e;
+  --color-warning: #f59e0b;
+  --color-error: #ef4444;
+  --transition-fast: 150ms ease-in-out;
+  --transition-normal: 250ms ease-in-out;
+  --transition-slow: 400ms ease-out;
+}
+
+* {
+  @apply border-slate-700;
+}
+
+body {
+  @apply bg-slate-950 text-slate-100;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+@layer utilities {
+  .animate-fade-in {
+    animation: fadeIn var(--transition-slow) forwards;
+  }
+  
+  .animate-slide-up {
+    animation: slideUp var(--transition-normal) forwards;
+  }
+  
+  .animate-slide-down {
+    animation: slideDown var(--transition-normal) forwards;
+  }
+  
+  .animate-scale-in {
+    animation: scaleIn var(--transition-normal) forwards;
+  }
+  
+  .animate-pulse-subtle {
+    animation: pulseSoft 2s infinite;
+  }
+  
+  .animate-spin-slow {
+    animation: spin 3s linear infinite;
+  }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { 
+    opacity: 0; 
+    transform: translateY(10px); 
+  }
+  to { 
+    opacity: 1; 
+    transform: translateY(0); 
+  }
+}
+
+@keyframes slideDown {
+  from { 
+    opacity: 0; 
+    transform: translateY(-10px); 
+  }
+  to { 
+    opacity: 1; 
+    transform: translateY(0); 
+  }
+}
+
+@keyframes scaleIn {
+  from { 
+    opacity: 0; 
+    transform: scale(0.95); 
+  }
+  to { 
+    opacity: 1; 
+    transform: scale(1); 
+  }
+}
+
+@keyframes pulseSoft {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+.scrollbar-thin::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-track {
+  @apply bg-slate-800 rounded-full;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  @apply bg-slate-600 rounded-full;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  @apply bg-slate-500;
+}
+
+@layer components {
+  .card {
+    @apply bg-slate-900 border border-slate-800 rounded-xl;
+    @apply transition-all duration-200;
+  }
+  
+  .card:hover {
+    @apply border-slate-700 shadow-lg shadow-slate-900/50;
+  }
+  
+  .btn-primary {
+    @apply bg-gradient-to-r from-violet-600 to-indigo-600;
+    @apply hover:from-violet-500 hover:to-indigo-500;
+    @apply text-white font-medium px-4 py-2 rounded-lg;
+    @apply transition-all duration-200;
+    @apply disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+  
+  .btn-secondary {
+    @apply bg-slate-800 hover:bg-slate-700;
+    @apply text-slate-200 font-medium px-4 py-2 rounded-lg;
+    @apply transition-all duration-200;
+    @apply disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+  
+  .input-field {
+    @apply w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-lg;
+    @apply text-slate-100 placeholder-slate-500;
+    @apply focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent;
+    @apply transition-all duration-200;
+  }
+  
+  .badge {
+    @apply inline-flex items-center gap-1 px-2 py-0.5 text-xs rounded-full;
+    @apply border;
+  }
+  
+  .badge-success {
+    @apply text-green-400 bg-green-400/10 border-green-400/20;
+  }
+  
+  .badge-warning {
+    @apply text-amber-400 bg-amber-400/10 border-amber-400/20;
+  }
+  
+  .badge-error {
+    @apply text-red-400 bg-red-400/10 border-red-400/20;
+  }
+  
+  .badge-info {
+    @apply text-violet-400 bg-violet-400/10 border-violet-400/20;
+  }
+}

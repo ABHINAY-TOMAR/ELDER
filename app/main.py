@@ -16,7 +16,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
-from app.openenv.graders import grade_task_1, grade_task_2, grade_task_3
+from app.openenv.graders import grade_task_1, grade_task_2, grade_task_3, PATTERN_KEYWORDS
 from app.openenv.test_cases import TEST_CASES, get_random_test_case
 
 
@@ -270,7 +270,6 @@ def route_and_grade(
         # Generate feedback
         found_patterns = []
         for pattern_name in ground_truth.keys():
-            from app.openenv.graders import PATTERN_KEYWORDS
             keywords = PATTERN_KEYWORDS.get(pattern_name, [])
             findings_text = " ".join(agent_findings).lower()
             if any(kw.lower() in findings_text for kw in keywords):

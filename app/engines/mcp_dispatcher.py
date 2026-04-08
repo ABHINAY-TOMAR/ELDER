@@ -19,11 +19,22 @@ class DispatchResult(BaseModel):
     validation_errors: List[str] = []
 
 class MCPDispatcher:
-    def __init__(self):
+    def __init__(self, default_timeout_minutes: int = 60):
         self.headers = {"Content-Type": "application/json"}
+        self.default_timeout_minutes = default_timeout_minutes
 
-    async def create_task(self, phase: Phase, mcp_url: str, architecture: Architecture) -> str:
+    async def create_task(
+        self, 
+        phase: Phase, 
+        mcp_url: str, 
+        architecture: Architecture,
+        deadline: str | None = None
+    ) -> str:
         task_id = f"{architecture.project_id}-phase-{phase.phase_number}"
+        
+        if deadline is None:
+            from datetime import timedelta
+            deadline = (datetime.now() + timedelta(days=7)).strftime("%Y-%m-%dT%H:%M:%SZ")
         
         payload = {
             "jsonrpc": "2.0",
@@ -33,7 +44,7 @@ class MCPDispatcher:
                 "task_id": task_id,
                 "title": phase.name,
                 "spec": phase.spec_text,
-                "deadline": "2026-12-31T00:00:00Z", # arbitrary future
+                "deadline": deadline,
                 "requirements": architecture.tech_stack
             }
         }

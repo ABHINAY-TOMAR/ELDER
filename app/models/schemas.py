@@ -75,9 +75,12 @@ class FailureMode(BaseModel):
 
 
 class RiskyDecision(BaseModel):
+    id: str = Field(..., description="Unique ID for the risky decision")
     decision_type: str = Field(..., description="Type of decision (e.g., database_choice, security_model)")
+    affected_component: str = Field(..., description="Which component this decision affects")
     reason: str = Field(..., description="Why this decision is risky")
     impact: Literal["high", "medium", "low"] = Field(..., description="Impact level")
+    decision_context: str = Field(..., description="Context around this decision")
     why_needs_deep_thinking: str = Field(..., description="Why this needs extended reasoning")
 
 class Phase(BaseModel):

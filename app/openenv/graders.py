@@ -45,19 +45,21 @@ def fuzzy_match(agent_val: str, truth_val: str) -> float:
     return 0.0
 
 
+PATTERN_KEYWORDS = {
+    "circular_dependency": ["circular", "cycle", "loop", "cyclic"],
+    "single_point_of_failure": ["single point", "spof", "bottleneck", "redundancy", "critical"],
+    "polyglot_persistence_issue": ["polyglot", "persistence", "transaction", "acid", "redis"],
+    "tight_coupling": ["tight", "coupling", "coupled", "monolith", "shared"],
+    "shared_database": ["shared database", "shared schema", "coupling", "bottleneck"],
+    "n_plus_1_query": ["n+1", "n plus 1", "query", "inefficient", "loop"],
+    "unencrypted_pii": ["encryption", "gdpr", "hipaa", "pii", "plaintext", "unencrypted"],
+    "spof": ["single point", "spof", "bottleneck", "redundancy"],
+}
+
+
 def get_keywords_for_pattern(pattern_name: str) -> List[str]:
     """Get keywords for detecting anti-patterns."""
-    mapping = {
-        "circular_dependency": ["circular", "cycle", "loop", "cyclic"],
-        "single_point_of_failure": ["single point", "spof", "bottleneck", "redundancy", "critical"],
-        "polyglot_persistence_issue": ["polyglot", "persistence", "transaction", "acid", "redis"],
-        "tight_coupling": ["tight", "coupling", "coupled", "monolith", "shared"],
-        "shared_database": ["shared database", "shared schema", "coupling", "bottleneck"],
-        "n_plus_1_query": ["n+1", "n plus 1", "query", "inefficient", "loop"],
-        "unencrypted_pii": ["encryption", "gdpr", "hipaa", "pii", "plaintext", "unencrypted"],
-        "spof": ["single point", "spof", "bottleneck", "redundancy"],
-    }
-    return mapping.get(pattern_name, [pattern_name])
+    return PATTERN_KEYWORDS.get(pattern_name, [pattern_name])
 
 
 def grade_task_1(

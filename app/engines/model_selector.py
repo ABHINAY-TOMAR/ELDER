@@ -1,3 +1,4 @@
+import os
 from typing import Literal, Optional, Dict
 from enum import Enum
 
@@ -52,5 +53,3 @@ class ModelSelector:
         
         # Low complexity: Always Haiku
         return "claude-3-5-haiku-20241022"
-
-import os

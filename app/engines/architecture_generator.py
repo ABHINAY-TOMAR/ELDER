@@ -1,7 +1,7 @@
 import json
 import structlog
 import uuid
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Literal
 
 from app.models.schemas import RequirementSpec, Architecture, Service, DataFlow, ADR
 from app.engines.llm_client import call_llm
@@ -20,7 +20,7 @@ Schema:
 }
 """
 
-async def generate(spec: RequirementSpec, domain: str, tech_stack: Dict[str, str]) -> Architecture:
+async def generate(spec: RequirementSpec, domain: Literal["microservices", "ai_native", "data_pipeline"], tech_stack: Dict[str, str]) -> Architecture:
     """
     Decomposes the final architecture intelligently using LLM into explicit models.
     """
@@ -52,7 +52,7 @@ async def generate(spec: RequirementSpec, domain: str, tech_stack: Dict[str, str
         arch = Architecture(
             project_id=str(uuid.uuid4()),
             project_name="Generated Project",
-            domain=domain, # type: ignore
+            domain=domain,
             services=services,
             tech_stack=tech_stack,
             adrs=adrs,
@@ -71,6 +71,6 @@ async def generate(spec: RequirementSpec, domain: str, tech_stack: Dict[str, str
         return Architecture(
             project_id=str(uuid.uuid4()),
             project_name="Error Generating Project",
-            domain=domain, # type: ignore
+            domain=domain,
             services=[], tech_stack=tech_stack, adrs=[], failure_modes={}, data_flows=[], implementation_phases=[], estimated_effort_weeks=4
         )

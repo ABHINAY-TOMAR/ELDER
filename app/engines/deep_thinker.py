@@ -17,18 +17,22 @@ class DeepThinker:
         self.tracker = ArchitectTokenTracker()
         
     def _score_evaluation(self, eval_text: str) -> float:
-        # Simple heuristic to extract a score from the LLM summary, or fallback.
-        # Open Deep Research parses out self-assessment scores.
-        # If the LLM generates "Score: 8/10", we extract 8.
+        """
+        Extract a score from LLM evaluation text.
+        
+        Looks for patterns like "Score: 8/10" or "Score: 8" and extracts the numeric value.
+        Returns 5.0 (neutral) as default if no score found.
+        """
         try:
             if "Score:" in eval_text:
                 parts = eval_text.split("Score:")
                 if len(parts) > 1:
                     score_str = parts[1].split()[0].replace("/10", "").replace(',', '').strip()
-                    return float(score_str)
-        except Exception:
-            pass
-        return 5.0 # default neutral
+                    score = float(score_str)
+                    return max(0.0, min(10.0, score))  # Clamp to 0-10 range
+        except Exception as e:
+            logger.warning("score_extraction_failed", error=str(e), text_length=len(eval_text))
+        return 5.0  # Default neutral score
 
     async def evaluate_alternatives(
         self,
