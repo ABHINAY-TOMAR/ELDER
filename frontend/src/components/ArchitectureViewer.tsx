@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
-import { Maximize2, Minimize2, Copy, Check, ZoomIn, ZoomOut } from 'lucide-react'
+import { Maximize2, Minimize2, Copy, Check, ZoomIn, ZoomOut, Download } from 'lucide-react'
 import mermaid from 'mermaid'
 import type { SessionState } from '../lib/types'
 
-mermaid.initialize({
+const darkThemeConfig = {
   startOnLoad: false,
   theme: 'dark',
   themeVariables: {
@@ -21,7 +21,29 @@ mermaid.initialize({
     titleColor: '#e2e8f0',
     edgeLabelBackground: '#1e293b',
   },
-})
+}
+
+const lightThemeConfig = {
+  startOnLoad: false,
+  theme: 'base' as const,
+  themeVariables: {
+    primaryColor: '#6366f1',
+    primaryTextColor: '#1e293b',
+    primaryBorderColor: '#4f46e5',
+    lineColor: '#64748b',
+    secondaryColor: '#e0e7ff',
+    tertiaryColor: '#c7d2fe',
+    background: '#f8fafc',
+    mainBkg: '#f1f5f9',
+    nodeBorder: '#4f46e5',
+    clusterBkg: '#f1f5f9',
+    clusterBorder: '#e2e8f0',
+    titleColor: '#1e293b',
+    edgeLabelBackground: '#f1f5f9',
+  },
+}
+
+mermaid.initialize(darkThemeConfig)
 
 interface ArchitectureViewerProps {
   session: SessionState | null
@@ -33,25 +55,47 @@ export default function ArchitectureViewer({ session }: ArchitectureViewerProps)
   const [copied, setCopied] = useState(false)
   const [scale, setScale] = useState(1)
   const [error, setError] = useState<string | null>(null)
+  const [isDark, setIsDark] = useState(true)
+
+  useEffect(() => {
+    const isDarkMode = !document.documentElement.classList.contains('light')
+    setIsDark(isDarkMode)
+    mermaid.initialize(isDarkMode ? darkThemeConfig : lightThemeConfig)
+  }, [])
 
   useEffect(() => {
     if (!containerRef.current || !session?.mermaid_diagram) return
 
     const renderDiagram = async () => {
       try {
+        setError(null)
         const id = `mermaid-${Date.now()}`
         const { svg } = await mermaid.render(id, session.mermaid_diagram)
         if (containerRef.current) {
           containerRef.current.innerHTML = svg
+          containerRef.current.classList.add('animate-fade-in')
         }
-        setError(null)
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to render diagram')
       }
     }
 
     renderDiagram()
-  }, [session?.mermaid_diagram])
+  }, [session?.mermaid_diagram, isDark])
+
+  useEffect(() => {
+    const observer = new MutationObserver((mutations) => {
+      mutations.forEach((mutation) => {
+        if (mutation.attributeName === 'class') {
+          const isDarkMode = !document.documentElement.classList.contains('light')
+          setIsDark(isDarkMode)
+          mermaid.initialize(isDarkMode ? darkThemeConfig : lightThemeConfig)
+        }
+      })
+    })
+    observer.observe(document.documentElement, { attributes: true })
+    return () => observer.disconnect()
+  }, [])
 
   const copyMermaid = () => {
     if (session?.mermaid_diagram) {
@@ -69,6 +113,28 @@ export default function ArchitectureViewer({ session }: ArchitectureViewerProps)
       document.exitFullscreen()
       setFullscreen(false)
     }
+  }
+
+  const downloadDiagram = () => {
+    if (!containerRef.current) return
+    const svg = containerRef.current.querySelector('svg')
+    if (!svg) return
+    const svgData = new XMLSerializer().serializeToString(svg)
+    const canvas = document.createElement('canvas')
+    const ctx = canvas.getContext('2d')
+    const img = new Image()
+    img.onload = () => {
+      canvas.width = img.width * 2
+      canvas.height = img.height * 2
+      ctx?.scale(2, 2)
+      ctx?.drawImage(img, 0, 0)
+      const pngFile = canvas.toDataURL('image/png')
+      const downloadLink = document.createElement('a')
+      downloadLink.download = 'architecture-diagram.png'
+      downloadLink.href = pngFile
+      downloadLink.click()
+    }
+    img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgData)))
   }
 
   if (!session) {
@@ -119,6 +185,13 @@ export default function ArchitectureViewer({ session }: ArchitectureViewerProps)
             title="Toggle fullscreen"
           >
             {fullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+          </button>
+          <button
+            onClick={downloadDiagram}
+            className="p-1.5 hover:bg-slate-800 text-slate-400 hover:text-slate-300 rounded transition-colors"
+            title="Download PNG"
+          >
+            <Download className="w-4 h-4" />
           </button>
         </div>
       </div>

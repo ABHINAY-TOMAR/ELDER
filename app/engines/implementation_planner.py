@@ -20,6 +20,39 @@ PHASE_DEFAULTS = {
     "default": {"name": "Phase", "duration": 2, "priority": "high"},
 }
 
+COMPLEXITY_MULTIPLIERS = {
+    "low": 1.0,
+    "medium": 1.5,
+    "high": 2.0,
+    "critical": 2.5
+}
+
+SERVICE_COMPLEXITY = {
+    "auth": "high",
+    "payment": "critical",
+    "billing": "high",
+    "transaction": "critical",
+    "order": "medium",
+    "inventory": "medium",
+    "product": "low",
+    "user": "medium",
+    "notification": "low",
+    "email": "low",
+    "sms": "low",
+    "analytics": "medium",
+    "search": "high",
+    "recommendation": "critical",
+    "ai": "critical",
+    "ml": "critical",
+    "gateway": "medium",
+    "api": "medium",
+    "cache": "low",
+    "database": "medium",
+    "queue": "medium",
+    "stream": "high",
+    "websocket": "medium",
+}
+
 
 def build_dependency_graph(services: List[Service]) -> Dict[str, List[str]]:
     graph = defaultdict(list)
@@ -49,27 +82,111 @@ def get_service_priority(service_id: str) -> str:
     return "high"
 
 
+def estimate_service_complexity(service_ids: List[str]) -> str:
+    max_complexity = "low"
+    for sid in service_ids:
+        sid_lower = sid.lower()
+        for key, complexity in SERVICE_COMPLEXITY.items():
+            if key in sid_lower:
+                if complexity == "critical":
+                    return "critical"
+                elif complexity == "high" and max_complexity != "critical":
+                    max_complexity = "high"
+                elif complexity == "medium" and max_complexity in ["low"]:
+                    max_complexity = "medium"
+    return max_complexity
+
+
+def estimate_phase_duration(service_ids: List[str], phase_num: int, architecture: Architecture) -> int:
+    base_duration = len(service_ids)
+    complexity = estimate_service_complexity(service_ids)
+    multiplier = COMPLEXITY_MULTIPLIERS.get(complexity, 1.0)
+    
+    duration = int(base_duration * multiplier)
+    
+    domain_adjustments = {
+        "microservices": 1.2,
+        "ai_native": 1.5,
+        "data_pipeline": 1.3,
+    }
+    domain_mult = domain_adjustments.get(architecture.domain, 1.0)
+    duration = int(duration * domain_mult)
+    
+    return max(1, min(8, duration))
+
+
+def generate_fallback_spec(service_ids: List[str], phase_num: int, architecture: Architecture, defaults: Dict) -> str:
+    complexity = estimate_service_complexity(service_ids)
+    
+    tasks = []
+    for sid in service_ids:
+        sid_lower = sid.lower()
+        if "auth" in sid_lower:
+            tasks.extend(["Implement authentication endpoints", "Add JWT token handling", "Set up OAuth2 flows"])
+        elif "gateway" in sid_lower or "api" in sid_lower:
+            tasks.extend(["Configure routing rules", "Set up rate limiting", "Add request validation"])
+        elif "payment" in sid_lower or "billing" in sid_lower:
+            tasks.extend(["Integrate payment gateway", "Handle webhooks", "Implement retry logic"])
+        elif "notification" in sid_lower or "email" in sid_lower:
+            tasks.extend(["Set up notification templates", "Configure delivery providers", "Add queue processing"])
+        elif "analytics" in sid_lower or "report" in sid_lower:
+            tasks.extend(["Design data models", "Create aggregation queries", "Build visualization endpoints"])
+        elif "ai" in sid_lower or "ml" in sid_lower or "model" in sid_lower:
+            tasks.extend(["Set up model endpoints", "Configure inference pipeline", "Add monitoring"])
+        else:
+            tasks.extend([f"Implement {sid} core logic", f"Add {sid} API endpoints", f"Write {sid} tests"])
+    
+    spec = f"""# {defaults['name']}
+
+## Overview
+Phase {phase_num} implementation for the {architecture.project_name} project.
+
+## Services
+{', '.join(service_ids)}
+
+## Tasks
+"""
+    for i, task in enumerate(tasks, 1):
+        spec += f"{i}. {task}\n"
+    
+    spec += f"""
+## Acceptance Criteria
+- All services compile and pass unit tests
+- API endpoints return expected responses
+- Integration with dependent services verified
+
+## Technical Notes
+- Complexity: {complexity}
+- Domain: {architecture.domain}
+"""
+    return spec
+
+
 def get_phase_defaults(service_ids: List[str], phase_num: int, architecture: Architecture) -> Dict:
     services_lower = [s.lower() for s in service_ids]
+    combined = " ".join(services_lower)
     
-    if phase_num == 1 and any(cs in " ".join(services_lower) for cs in ["auth", "user"]):
+    if phase_num == 1 and any(cs in combined for cs in ["auth", "user", "identity"]):
         return PHASE_DEFAULTS["auth"]
     
-    if any(cs in " ".join(services_lower) for cs in ["gateway", "api", "entry"]):
+    if any(cs in combined for cs in ["gateway", "api", "entry"]):
         return PHASE_DEFAULTS["gateway"]
     
-    if any(cs in " ".join(services_lower) for cs in ["data", "db", "storage", "cache"]):
+    if any(cs in combined for cs in ["data", "db", "storage"]):
         return PHASE_DEFAULTS["data"]
     
-    if any(cs in " ".join(services_lower) for cs in ["monitor", "log", "metric", "observe"]):
+    if any(cs in combined for cs in ["monitor", "log", "metric", "observe"]):
         return PHASE_DEFAULTS["monitoring"]
+    
+    if any(cs in combined for cs in ["payment", "transaction", "billing"]):
+        return PHASE_DEFAULTS["integration"]
     
     if len(service_ids) > 3:
         return PHASE_DEFAULTS["core"]
     
     base = PHASE_DEFAULTS["default"].copy()
     base["name"] = f"Phase {phase_num}"
-    base["duration"] = min(4, max(1, len(service_ids)))
+    base["duration"] = estimate_phase_duration(service_ids, phase_num, architecture)
     return base
 
 
@@ -126,8 +243,8 @@ async def plan(architecture: Architecture) -> List[Phase]:
         
         defaults = get_phase_defaults(service_ids, phase_num, architecture)
         safe_name = defaults["name"]
-        safe_spec = f"# {safe_name}\n\n## Services\n{', '.join(service_ids)}"
         safe_duration = defaults["duration"]
+        safe_spec = generate_fallback_spec(service_ids, phase_num, architecture, defaults)
         
         try:
             raw_res = await call_llm(
@@ -141,6 +258,8 @@ async def plan(architecture: Architecture) -> List[Phase]:
             safe_duration = max(1, min(8, int(data.get("duration_weeks", safe_duration))))
         except Exception as e:
             logger.error("phase_llm_spec_generation_failed", error=str(e), phase=phase_num)
+            safe_spec = generate_fallback_spec(service_ids, phase_num, architecture, defaults)
+            logger.info("using_enhanced_fallback_spec", phase=phase_num)
             
         all_priorities = [get_service_priority(sid) for sid in service_ids]
         phase_priority = "critical" if "critical" in all_priorities else "high"
