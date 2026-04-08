@@ -56,7 +56,7 @@
 - [x] **[DOC-004]** 5 worked examples in `examples/`
 
 ### OpenSource Integration
-- [ ] **[OS-001]** Visual Explainer patterns for Mermaid
+- [x] **[OS-001]** Visual Explainer patterns for Mermaid
 
 ### OpenEnv Completion
 - [x] **[OE-002]** baseline.py for scoring
