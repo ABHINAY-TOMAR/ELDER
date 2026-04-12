@@ -318,3 +318,74 @@ MIT License - see [LICENSE](LICENSE) for details.
 ---
 
 **ELDER** - Building the future, one architecture at a time.
+
+## OpenEnv Compliance Snapshot
+
+### Environment Overview
+
+ELDER exposes an OpenEnv-compatible FastAPI environment with exactly three tasks:
+
+1. `task_stack_recommendation` (Easy)
+2. `task_anti_pattern_detection` (Medium)
+3. `task_full_design_integration` (Hard)
+
+The runtime endpoints are:
+
+- `POST /openenv/reset?task_id=...`
+- `POST /openenv/step`
+- `GET /openenv/state`
+
+### Motivation
+
+The OpenEnv interface is included to benchmark architecture reasoning quality under deterministic scoring. This makes submissions reproducible and comparable during automated hackathon judging.
+
+### Action And Observation Spaces
+
+- `Action`: strict Pydantic v2 model with `task_id` and `payload`.
+- `Observation`: strict Pydantic v2 model with `task_id`, `message`, `attempt`, `best_score`, and `done`.
+- `Reward`: strict Pydantic v2 model with `score`, `delta`, and shaped `reward` for partial progress.
+
+Rewards are deterministic and always in the open interval `(0.0, 1.0)`, with partial-progress shaping based on score improvements.
+
+### Setup Instructions
+
+1. Install dependencies:
+
+```bash
+pip install -r requirements.txt
+```
+
+2. Run API server:
+
+```bash
+uvicorn app.main:app --host 0.0.0.0 --port 7860
+```
+
+3. Run baseline benchmark:
+
+```bash
+set OPENAI_API_KEY=your_key_here
+python baseline.py
+```
+
+Optional OpenAI-compatible route using Hugging Face token:
+
+```bash
+set HF_TOKEN=your_hf_token
+set HF_OPENAI_BASE_URL=https://router.huggingface.co/v1
+python baseline.py
+```
+
+### Baseline Scores
+
+Baseline scoring is reproducible by fixing `BASELINE_SEED` (default: `42`) and `OPENAI_BASELINE_MODEL` (default: `gpt-4o-mini`).
+
+Example output format:
+
+```text
+Baseline model: gpt-4o-mini
+Seed: 42
+Easy (task_stack_recommendation): 0.xxxxxx
+Medium (task_anti_pattern_detection): 0.xxxxxx
+Hard (task_full_design_integration): 0.xxxxxx
+```

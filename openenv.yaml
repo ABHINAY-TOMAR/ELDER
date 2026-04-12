@@ -4,6 +4,10 @@
 name: "architect-agent"
 version: "1.0.0"
 description: "AI system architect that designs microservices, AI-native, and data pipeline systems"
+versions:
+  openenv_spec: "1.0"
+  api: "v1"
+  pydantic: "2"
 
 domains:
   - microservices
@@ -11,9 +15,9 @@ domains:
   - data_pipeline
 
 tasks:
-  - id: "tech_stack"
+  - id: "task_stack_recommendation"
     name: "Tech Stack Recommendation"
-    difficulty: "easy"
+    difficulty: "Easy"
     domain: "all"
     description: "Given project requirements, recommend an optimal technology stack"
     action_schema:
@@ -38,9 +42,9 @@ tasks:
         - api_framework
         - database
 
-  - id: "anti_pattern"
+  - id: "task_anti_pattern_detection"
     name: "Architectural Anti-Pattern Detection"
-    difficulty: "medium"
+    difficulty: "Medium"
     domain: "all"
     description: "Identify architectural anti-patterns in a given system design"
     action_schema:
@@ -54,9 +58,9 @@ tasks:
       required:
         - findings
 
-  - id: "full_design"
+  - id: "task_full_design_integration"
     name: "Full Architecture Design"
-    difficulty: "hard"
+    difficulty: "Hard"
     domain: "all"
     description: "Design a complete system with services, dependencies, and integration"
     action_schema:
@@ -84,7 +88,7 @@ tasks:
         - services
 
 grading:
-  tech_stack:
+  task_stack_recommendation:
     max_score: 1.0
     weights:
       api_framework: 0.2
@@ -93,11 +97,11 @@ grading:
       message_queue: 0.2
       monitoring: 0.2
 
-  anti_pattern:
+  task_anti_pattern_detection:
     max_score: 1.0
     scoring: "percentage_found"
 
-  full_design:
+  task_full_design_integration:
     max_score: 1.0
     weights:
       sensibility: 0.4

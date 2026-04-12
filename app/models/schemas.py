@@ -184,6 +184,52 @@ class TaskStatusResponse(BaseModel):
     task_id: str
     status: str
 
+
+class Observation(BaseModel):
+    model_config = ConfigDict(strict=True, extra="forbid")
+
+    task_id: str = Field(..., description="Task identifier")
+    message: str = Field(..., description="Environment feedback message")
+    attempt: int = Field(..., ge=0, description="Current attempt number for the active task")
+    best_score: float = Field(..., gt=0.0, lt=1.0, description="Best score observed so far")
+    done: bool = Field(..., description="Whether the task episode is complete")
+
+
+class Action(BaseModel):
+    model_config = ConfigDict(strict=True, extra="forbid")
+
+    task_id: str = Field(..., description="Task identifier")
+    payload: Dict[str, Any] = Field(default_factory=dict, description="Action payload produced by the agent")
+
+
+class Reward(BaseModel):
+    model_config = ConfigDict(strict=True, extra="forbid")
+
+    task_id: str = Field(..., description="Task identifier")
+    score: float = Field(..., gt=0.0, lt=1.0, description="Current deterministic score")
+    delta: float = Field(..., ge=0.0, lt=1.0, description="Improvement over previous best score")
+    reward: float = Field(..., gt=0.0, lt=1.0, description="Reward signal (includes partial progress)")
+    done: bool = Field(..., description="Whether the task episode is complete")
+    observation: Observation = Field(..., description="Updated observation after action")
+
+
+class OpenEnvTask(BaseModel):
+    model_config = ConfigDict(strict=True, extra="forbid")
+
+    id: str
+    name: str
+    difficulty: Literal["Easy", "Medium", "Hard"]
+    description: str
+
+
+class OpenEnvState(BaseModel):
+    model_config = ConfigDict(strict=True, extra="forbid")
+
+    tasks: List[OpenEnvTask]
+    active_task_id: Optional[str] = None
+    attempts_by_task: Dict[str, int] = Field(default_factory=dict)
+    best_score_by_task: Dict[str, float] = Field(default_factory=dict)
+
 # --- DATABASE MODELS ---
 
 class ProjectDB(BaseModel):
